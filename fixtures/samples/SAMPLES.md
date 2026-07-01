@@ -14,8 +14,7 @@ format), confirming BVX has to come from a shop.
 | `btlx-parser-sample.btlx` | [victorwhale/btlx-parser](https://github.com/victorwhale/btlx-parser) | 2.0 | ⚠️ **non-conformant toy** — puts geometry in attributes, not child elements. Kept as a counter-example; do **not** model against it. |
 
 These are third-party files retained for interoperability testing, each attributed
-to its source above. [`fetch.sh`](fetch.sh) re-pulls the machine exports if we ever
-want fresh copies.
+to its source above (fetch a fresh copy from the linked repo if ever needed).
 
 ## What these files taught us
 

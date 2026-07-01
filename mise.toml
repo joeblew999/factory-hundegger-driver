@@ -1,0 +1,101 @@
+#:schema https://mise.jdx.dev/schema/mise.json
+# factory-hundegger-driver — consumes the joeblew999/.github shared mise task
+# library. `mise run ci` is the WHOLE of CI, and runs identically on your machine
+# and on the GitHub matrix (ubuntu + macOS + windows). See the .github README.
+#
+# Rust is owned by rust-toolchain.toml (rustup), NEVER mise — `ci:check-global`
+# enforces this. Global tools (nu, gh, git-cliff) come from
+# `mise run mise:global:bootstrap` (once per machine).
+
+[task_config]
+includes = [
+  "git::https://github.com/joeblew999/.github.git//tasks/mise.toml?ref=v0.57.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/ci.toml?ref=v0.57.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/tool-rust.toml?ref=v0.57.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/release.toml?ref=v0.57.0",
+]
+
+# ── The control panel: this list IS our CI ────────────────────────────────────
+#   bootstrap-check — re-runs mise:repo:bootstrap and fails if the generated
+#                     workflows drifted from what's committed.
+#   rust:test       — cargo test --all-targets (compiles the CLI for THIS OS, so
+#                     the matrix builds a linux/macOS/windows binary each).
+#   smoke           — run the built tool on a real machine .btlx (proves it reads
+#                     real files, on every OS).
+[tasks.ci]
+depends = ["bootstrap-check", "rust:test", "smoke"]
+
+# ── Tuning — bootstrap READS this and projects it into .github/workflows/ ──────
+# Windows is in the RELEASE matrix on purpose: Hundegger Cambium is Windows, so a
+# factory needs the .exe.
+[env]
+CI_OS_MATRIX         = '["ubuntu-latest", "macos-latest", "windows-latest"]'   # which OSes CI verifies on
+CI_RELEASE           = "true"                                                  # publish binaries on a git TAG
+CI_RELEASE_OS_MATRIX = '["ubuntu-latest", "macos-latest", "windows-latest"]'   # which OSes publish (incl. windows for Cambium)
+
+# `dist` is the per-OS build task the release workflow runs on a tag. It builds the
+# release binary and stages it in the layout `release:pack` tars up:
+#   dist/<name>_<ver>_<os>_<arch>/<bin>
+[tasks.dist]
+run = '''
+#!/usr/bin/env nu
+def main [] {
+  ^cargo build --release --bin hundegger-btlx
+  let ver  = (open Cargo.toml | get package.version)
+  let os   = $nu.os-info.name                                      # linux | macos | windows
+  let arch = $nu.os-info.arch                                      # x86_64 | aarch64
+  let bin  = (if $os == "windows" { "hundegger-btlx.exe" } else { "hundegger-btlx" })
+  let d    = $"dist/hundegger-btlx_($ver)_($os)_($arch)"
+  mkdir $d
+  cp ($"target/release/($bin)") ($d | path join $bin)
+  print $"✓ staged ($d)/($bin)"
+}
+'''
+
+# Prove the built tool reads a real machine file — runs local AND on every OS in CI.
+[tasks.smoke]
+run = '''
+#!/usr/bin/env nu
+def main [] {
+  ^cargo run --release --bin hundegger-btlx -- inspect fixtures/samples/lignocam-hackathon.btlx
+}
+'''
+
+# Fail if .github/workflows/ drifted from `mise run mise:repo:bootstrap` — keeps the
+# generated CI honest against the shared bootstrap. (.gitattributes pins eol=lf so
+# the git compare is identical on Windows.)
+[tasks.bootstrap-check]
+run = '''
+#!/usr/bin/env nu
+def main [] {
+  ^mise run mise:repo:bootstrap
+  let dirty = (^git status --porcelain .github/workflows | str trim)
+  if ($dirty | is-not-empty) {
+    print --stderr "✗ .github/workflows/ drifted — run `mise run mise:repo:bootstrap` and commit:"
+    ^git --no-pager diff -- .github/workflows
+    exit 1
+  }
+  print "✓ workflows in sync with mise:repo:bootstrap"
+}
+'''
+
+# Download + run the published binary for THIS OS/arch (release assets are public).
+#   mise run run-bin              # latest release
+#   mise run run-bin -- v0.1.0    # a specific tag
+[tasks.run-bin]
+run = '''
+#!/usr/bin/env nu
+def main [tag?: string] {
+  let t    = ($tag | default (^gh release view --json tagName | from json | get tagName))
+  let os   = $nu.os-info.name
+  let arch = $nu.os-info.arch
+  let dir  = (mktemp -d)
+  ^gh release download $t --pattern $"hundegger-btlx_*_($os)_($arch).tar.gz" --dir $dir --clobber
+  let tgz = (ls $dir | where name =~ 'tar.gz' | get 0.name)
+  ^tar -xzf $tgz -C $dir
+  let bin = ($dir | path join (if $os == "windows" { "hundegger-btlx.exe" } else { "hundegger-btlx" }))
+  print $"→ running the ($t) binary for ($os)/($arch):"
+  ^$bin demo
+  rm -rf $dir
+}
+'''

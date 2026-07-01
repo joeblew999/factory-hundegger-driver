@@ -107,6 +107,8 @@ The `inspect` tool is designed to help close these from the field:
 
 ## Develop
 
+Quick loop with plain cargo:
+
 ```sh
 cargo test                                        # unit + doctests
 cargo run --bin hundegger-btlx -- inspect fixtures/samples/eth-stencil_60x80.btlx
@@ -114,8 +116,44 @@ cargo run --bin hundegger-btlx -- demo            # print a sample BTLx
 xmllint --noout --schema fixtures/schema/BTLx_2_3_1.offline.xsd fixtures/sample-drilling.btlx
 ```
 
-Prebuilt binaries for Windows / macOS / Linux are published to
-[Releases](https://github.com/joeblew999/factory-hundegger-driver/releases) on each
-`v*` tag (built natively per-OS in CI — no cross-compilation).
+Rust is pinned in [`rust-toolchain.toml`](rust-toolchain.toml) (rustup) — **not**
+mise. `xmllint` is only needed for the schema-validation check.
+
+## CI & releasing — how binaries reach the factory
+
+CI is a single mise task, `mise run ci`, that runs **identically on your machine and
+on the GitHub matrix** (ubuntu + macOS + windows). This repo consumes the shared
+[joeblew999/.github](https://github.com/joeblew999/.github) task library by reference
+(pinned `?ref=` in [`mise.toml`](mise.toml)); the workflows under
+[`.github/workflows`](.github/workflows) are **generated** by
+`mise run mise:repo:bootstrap` — don't hand-edit them.
+
+```sh
+mise run mise:global:bootstrap    # once per machine — seeds nu, gh, git-cliff…
+mise run ci                       # the whole of CI: bootstrap-check + rust:test + smoke
+```
+
+What `mise run ci` runs (the `[tasks.ci].depends` list in `mise.toml`):
+
+- **`rust:test`** — `cargo test --all-targets`, so the matrix compiles the CLI on
+  every OS (native, no cross-compilation).
+- **`smoke`** — runs the built tool on a real machine `.btlx`, on every OS.
+- **`bootstrap-check`** — fails if the generated workflows drift from the shared
+  bootstrap.
+
+**Releasing binaries** (what puts the `.exe` in Max's hands): publishing is gated on
+`CI_RELEASE = true` in `mise.toml` and runs on a **git tag**, not every push. Each OS
+runner builds its own arch via the `dist` task and attaches the archive to the
+GitHub Release. **Windows is in the release matrix on purpose** — Cambium is Windows.
+
+```sh
+mise run release:github -- v0.1.0      # changelog → tag → GitHub release → binaries build
+# or just:  git tag v0.1.0 && git push origin v0.1.0
+```
+
+Downloadable binaries land on the
+[Releases](https://github.com/joeblew999/factory-hundegger-driver/releases) page for
+Windows / macOS / Linux. `mise run run-bin` fetches and runs the published binary for
+your OS.
 
 License: MIT OR Apache-2.0.
