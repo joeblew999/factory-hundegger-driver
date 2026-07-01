@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BTLx xmlns="https://www.design2machine.com" Version="2.3.1">
+  <Project Name="sample-project">
+    <Parts>
+      <Part Designation="beam-1" Count="1" Length="3000" Width="160" Height="80">
+        <Processings>
+          <Drilling Name="bolt-hole-1" ProcessID="1" ReferencePlaneID="3">
+            <StartX>500</StartX>
+            <StartY>80</StartY>
+            <Inclination>90</Inclination>
+            <Depth>80</Depth>
+            <Diameter>12</Diameter>
+          </Drilling>
+          <Drilling Name="bolt-hole-2" ProcessID="2" ReferencePlaneID="1">
+            <StartX>2500</StartX>
+            <StartY>80</StartY>
+            <Inclination>60</Inclination>
+            <Depth>80</Depth>
+            <Diameter>12</Diameter>
+          </Drilling>
+        </Processings>
+      </Part>
+    </Parts>
+  </Project>
+</BTLx>

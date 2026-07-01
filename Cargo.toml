@@ -1,0 +1,18 @@
+[package]
+name = "factory-hundegger-driver"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Hundegger timber-CNC machine driver for factory-gateway — BTLx serialiser + implements the factory-machine-model MachineDriver contract"
+repository = "https://github.com/joeblew999/factory-hundegger-driver"
+
+[dependencies]
+factory-machine-model = { git = "https://github.com/joeblew999/factory-machine-model" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+quick-xml = { version = "0.37", features = ["serialize"] }
+tokio = { version = "1", features = ["fs", "process", "time", "rt", "macros"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["fs", "rt", "macros", "rt-multi-thread"] }
