@@ -9,10 +9,10 @@
 
 [task_config]
 includes = [
-  "git::https://github.com/joeblew999/.github.git//tasks/mise.toml?ref=v0.57.0",
-  "git::https://github.com/joeblew999/.github.git//tasks/ci.toml?ref=v0.57.0",
-  "git::https://github.com/joeblew999/.github.git//tasks/tool-rust.toml?ref=v0.57.0",
-  "git::https://github.com/joeblew999/.github.git//tasks/release.toml?ref=v0.57.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/mise.toml?ref=v0.61.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/ci.toml?ref=v0.61.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/tool-rust.toml?ref=v0.61.0",
+  "git::https://github.com/joeblew999/.github.git//tasks/release.toml?ref=v0.61.0",
 ]
 
 # ── The control panel: this list IS our CI ────────────────────────────────────
