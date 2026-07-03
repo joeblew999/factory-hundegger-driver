@@ -6,15 +6,46 @@ directly, or a BVX serialiser is needed. This is generic reference (public); whi
 *shops* run which machines is the private prospect list in
 [factory-customers-cnc](https://github.com/joeblew999/factory-customers-cnc).
 
-**Data lives in [`machines.jsonl`](machines.jsonl)** (one machine per line) — the
-source of truth. The table below is **generated** from it with `mise run machines`;
-edit the JSONL, not the table.
+**Data lives in JSONL** — the source of truth: [`makers.jsonl`](makers.jsonl)
+(manufacturer level) and [`machines.jsonl`](machines.jsonl) (Hundegger model level).
+Both tables below are **generated** with `mise run machines`; edit the JSONL, not the
+tables.
 
-**Provenance rule:** every machine cites a `source`. A format we can't source is
-`format_confirmed: false` and renders `(to confirm)` — not guessed. Format-per-model
-is only partly public; see [The format picture](#the-format-picture).
+**Provenance rule:** every row cites a `source`. A format we can't source renders
+`(to confirm)` — not guessed.
 
-## Machines
+## Makers — where to steer effort
+
+Every maker and the format they take, ordered by market position. **`popularity` is a
+qualitative tier** (leader / major / established / niche) drawn from company
+positioning statements and product breadth — **not sales data.** It's a rough steer,
+not a fact.
+
+<!-- gen:makers -->
+
+| Manufacturer | Country | Segment | Format(s) | Popularity | Source |
+|---|---|---|---|---|---|
+| Hundegger | DE | joinery / beam CNC | BTLx (via Cambium); BVX (native) | leader | hundegger.com; Tekla |
+| Weinmann (HOMAG Group) | DE | timber-frame / prefab / wall & panel lines | BTL; BTLx | leader | homag.com; ansvarcad |
+| Essetre | IT | beam CNC / mass timber (glulam, CLT) | BTL (BTL10) | major | timbertools.com; essetre-na.com; ansvarcad |
+| Krüsi / Krusimatic | CH | joinery / length / log-home CNC | BTL | established | krusi.com; timbertools.com |
+| Randek | SE | prefab framing / wall lines / cut saws | to confirm | major | archiframe.fi |
+| SCM | IT | woodworking / timber construction | BTL (BTL10) | major | ansvarcad |
+| Schmidler | DE | timber CNC | BTL (BTL10) | niche | ansvarcad |
+| Baljer & Zembrod | DE | glulam / beam processing | to confirm | niche | cadwork.com |
+| CMS | IT | CNC (general + timber) | to confirm | unknown | cadwork.com |
+| Stromab | IT | cut saws | to confirm | niche | archiframe.fi |
+| Creneau Industriel | BE | framing / prefab | to confirm | unknown | cadwork.com |
+<!-- /gen:makers -->
+
+**The steer:** the two biggest players are in *different* segments — **Hundegger**
+leads timber **joinery/beam** CNC, **Weinmann** leads timber-**frame/prefab**. Both
+read **BTLx** (what we emit), so BTLx already reaches both leaders. The broader
+long-tail (Essetre, Krüsi, SCM, Schmidler…) mostly reads the older **BTL**, so a
+**BTL v10** serialiser is what would open the rest of the market — build it when a
+real BTL-only customer appears.
+
+## Hundegger machines
 
 All current Hundegger machines run the **Cambium** controller, and Cambium imports
 **BTL/BTLx** — so our BTLx output targets the whole current range. `BVX` is
@@ -77,15 +108,17 @@ here — add to `machines.jsonl` only with a source.
 also emit the older **BTL v10** — a separate serialiser, tracked when a real
 non-Hundegger customer needs it.
 
-## Adding a machine
+## Adding rows
 
-Add a line to [`machines.jsonl`](machines.jsonl), then `mise run machines` to
-regenerate the table. Fields: `manufacturer`, `model`, `family`, `controller`,
-`format`, `format_via`, `format_confirmed` (bool), `source`, `notes`.
+Edit the JSONL, then `mise run machines` to regenerate both tables. Every row needs a
+`source`; unknowns stay `(to confirm)` — don't guess.
 
-- Unknown format → `format: null`, `format_confirmed: false` (renders `(to confirm)`).
-- Confirmed from a real shop file or Hundegger → set the format, `format_confirmed:
-  true`, and cite it in `source` (e.g. `"shop export 2026-07"`).
-- Other manufacturers (Weinmann, Essetre, Krüsi…) → add rows with their
-  `manufacturer`, but **confirm the dialect** — many read the older **BTL**, not
-  necessarily **BTLx** (see above). Don't assume; cite a source.
+- **A maker** → [`makers.jsonl`](makers.jsonl): `manufacturer`, `country`, `segment`,
+  `formats`, `popularity` (leader/major/established/niche/unknown), `basis`, `source`,
+  `notes`. Confirm the *dialect* — many makers read the older **BTL**, not necessarily
+  **BTLx** (see the format picture). `popularity` is a qualitative steer, not sales
+  data.
+- **A Hundegger model** → [`machines.jsonl`](machines.jsonl): `manufacturer`, `model`,
+  `family`, `controller`, `format`, `format_via`, `format_confirmed` (bool), `source`,
+  `notes`. Confirmed from a real shop file → set the format and cite it (e.g.
+  `"shop export 2026-07"`).

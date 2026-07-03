@@ -144,31 +144,46 @@ def main [] {
 }
 '''
 
-# Regenerate the reference/machines.md table from reference/machines.jsonl (the
-# source of truth). Pure nushell.   mise run machines
+# Regenerate the two reference/machines.md tables from their JSONL sources of truth
+# (makers.jsonl + machines.jsonl). Pure nushell.   mise run machines
 [tasks.machines]
 run = '''
 #!/usr/bin/env nu
+def rows [path: string] {
+  open $path | lines | where {|l| ($l | str trim | is-not-empty)} | each {|l| $l | from json }
+}
+def splice [md: string, name: string, table: string] {
+  let o = $"<!-- gen:($name) -->"
+  let c = $"<!-- /gen:($name) -->"
+  let before = ($md | split row $o | get 0)
+  let after = ($md | split row $c | get 1)
+  $"($before)($o)\n\n($table)\n($c)($after)"
+}
 def main [] {
-  let rows = (open reference/machines.jsonl | lines | where {|l| ($l | str trim | is-not-empty)} | each {|l| $l | from json })
-  mut out = []
-  for mfr in ($rows | get manufacturer | uniq) {
-    let mrows = ($rows | where manufacturer == $mfr)
-    $out = ($out | append [$"### ($mfr)" "" "| Family | Model | Controller | Interchange in | Notes |" "|--------|-------|------------|----------------|-------|"])
-    for r in $mrows {
+  # Makers overview.
+  let makers = (rows "reference/makers.jsonl")
+  mut m = ["| Manufacturer | Country | Segment | Format(s) | Popularity | Source |" "|---|---|---|---|---|---|"]
+  for r in $makers {
+    $m = ($m | append $"| ($r.manufacturer) | ($r.country) | ($r.segment) | ($r.formats) | ($r.popularity) | ($r.source) |")
+  }
+  # Hundegger model detail, grouped by manufacturer.
+  let machines = (rows "reference/machines.jsonl")
+  mut x = []
+  for mfr in ($machines | get manufacturer | uniq) {
+    $x = ($x | append [$"### ($mfr)" "" "| Family | Model | Controller | Interchange in | Notes |" "|--------|-------|------------|----------------|-------|"])
+    for r in ($machines | where manufacturer == $mfr) {
       let fmt = (if $r.format_confirmed {
         if (($r.format_via | default "") | is-empty) { $r.format } else { $"($r.format) \(via ($r.format_via)\)" }
       } else { "*(to confirm)*" })
-      $out = ($out | append $"| ($r.family) | ($r.model) | ($r.controller) | ($fmt) | ($r.notes) |")
+      $x = ($x | append $"| ($r.family) | ($r.model) | ($r.controller) | ($fmt) | ($r.notes) |")
     }
-    $out = ($out | append "")
+    $x = ($x | append "")
   }
-  let table = ($out | str join (char newline))
-  let md = (open reference/machines.md --raw | decode utf-8)
-  let before = ($md | split row "<!-- gen:machines -->" | get 0)
-  let after = ($md | split row "<!-- /gen:machines -->" | get 1)
-  $"($before)<!-- gen:machines -->\n\n($table)\n<!-- /gen:machines -->($after)" | save --force reference/machines.md
-  print $"✓ regenerated reference/machines.md table from ($rows | length) machines"
+  mut md = (open reference/machines.md --raw | decode utf-8)
+  $md = (splice $md "makers" ($m | str join (char newline)))
+  $md = (splice $md "machines" ($x | str join (char newline)))
+  $md | save --force reference/machines.md
+  print $"✓ regenerated tables — ($makers | length) makers, ($machines | length) machines"
 }
 '''
 
