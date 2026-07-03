@@ -23,27 +23,34 @@ not a fact.
 
 <!-- gen:makers -->
 
-| Manufacturer | Country | Segment | BTL | BTLx | BVX | Drive today? | Popularity | Source |
-|---|---|---|:---:|:----:|:---:|---|---|---|
-| Hundegger | DE | joinery | ✓ | ✓ | ✓ | **yes** (BTLx) | leader | hundegger.com; Tekla |
-| Weinmann (HOMAG Group) | DE | framing | ✓ | ✓ | ✗ | **yes** (BTLx) | leader | homag.com; ansvarcad |
-| Essetre | IT | mass-timber | ✓ | ? | ✗ | ? | major | timbertools.com; essetre-na.com; ansvarcad |
-| Krüsi (Krusimatic) | CH | joinery | ✓ | ? | ✗ | ? | established | krusi.com; timbertools.com |
-| Randek | SE | framing | ? | ? | ✗ | ? | major | archiframe.fi |
-| SCM | IT | multi | ✓ | ? | ✗ | ? | major | ansvarcad |
-| Schmidler | DE | joinery | ✓ | ? | ✗ | ? | niche | ansvarcad |
-| Baljer & Zembrod | DE | mass-timber | ? | ? | ✗ | ? | niche | cadwork.com |
-| CMS | IT | multi | ? | ? | ✗ | ? | unknown | cadwork.com |
-| Stromab | IT | cutting | ? | ? | ✗ | ? | niche | archiframe.fi |
-| Creneau Industriel | BE | framing | ? | ? | ✗ | ? | unknown | cadwork.com |
+| Manufacturer | Country | Segment | BTL | BTLx | Native | Drive today? | Popularity | Source |
+|---|---|---|:---:|:----:|---|---|---|---|
+| Hundegger | DE | joinery | ✓ | ✓ | BVX2 | **yes** (BTLx) | leader | hundegger.com; cadwork KB; Tekla |
+| Weinmann (HOMAG Group) | DE | framing | ✓ | ✓ | — | **yes** (BTLx) | leader | homag.com; ansvarcad; AGACAD |
+| Essetre | IT | mass-timber | ✓ | ? | — | ? | major | timbertools.com; essetre-na.com; ansvarcad |
+| Krüsi (Krusimatic) | CH | joinery | ✓ | ? | — | ? | established | krusi.com; timbertools.com |
+| Randek | SE | framing | ? | ? | CDT4 / SPL728 | ? | major | agacad.com; archiframe.fi |
+| SCM | IT | multi | ✓ | ? | — | ? | major | ansvarcad |
+| Schmidler | DE | joinery | ✓ | ? | — | ? | niche | ansvarcad |
+| Baljer & Zembrod | DE | mass-timber | ? | ? | — | ? | niche | cadwork.com |
+| CMS | IT | multi | ? | ? | — | ? | unknown | cadwork.com |
+| Stromab | IT | cutting | ? | ? | — | ? | niche | archiframe.fi |
+| Creneau Industriel | BE | framing | ? | ? | — | ? | unknown | cadwork.com |
 <!-- /gen:makers -->
 
-**The steer:** the two biggest players are in *different* segments — **Hundegger**
-leads timber **joinery/beam** CNC, **Weinmann** leads timber-**frame/prefab**. Both
-read **BTLx** (what we emit), so BTLx already reaches both leaders. The broader
-long-tail (Essetre, Krüsi, SCM, Schmidler…) mostly reads the older **BTL**, so a
-**BTL v10** serialiser is what would open the rest of the market — build it when a
-real BTL-only customer appears.
+**The steer** — the market splits into three buckets (reproducible from the JSONL):
+
+1. **Drive today with our BTLx** → **Hundegger** and **Weinmann** — the two leaders,
+   in *different* segments (joinery/beam vs frame/prefab). BTLx already reaches both.
+2. **BTL-only, needs a BTL v10 serialiser** → **Essetre, Krüsi, SCM, Schmidler**
+   (major/established). One extra serialiser opens this whole tier.
+3. **Proprietary, needs its own exporter** → **Randek** (major, framing) uses **CDT4 /
+   SPL728**, not BTL/BTLx at all — a separate, bespoke effort, only if a Randek
+   customer appears.
+
+Remaining `?` rows (Baljer & Zembrod, CMS, Stromab, Creneau) are unverified — not
+worth chasing until one is a real prospect. Effort priority: BTLx (**done**) → BTL v10
+(opens tier 2) → Randek's format (on demand only).
 
 ## Hundegger machines
 
@@ -62,15 +69,15 @@ that bypasses Cambium's BTLx import.
 | joinery | ROBOT-Drive | Cambium | BTLx (via Cambium import) | 6-axis robot + 5-axis saw/slot/marking |
 | joinery | ROBOT-Compact | Cambium | BTLx (via Cambium import) | 6-axis robot + automated tool changer |
 | joinery | K2-Industry | Cambium | BTLx (via Cambium import) | industrial structural-timber joinery (2026) |
-| cutting | SPEED-Cut 480 | Cambium | BTLx (via Cambium import) | solid-timber cutting; native BVX (to confirm) |
-| cutting | TURBO-Drive | Cambium | BTLx (via Cambium import) | flexible saw unit; native BVX (to confirm) |
+| cutting | SPEED-Cut 480 | Cambium | BTLx (via Cambium import) | solid-timber cutting; BVX2 native |
+| cutting | TURBO-Drive | Cambium | BTLx (via Cambium import) | flexible saw unit; BVX2 native |
 | panel | SPM-2 | Cambium | BTLx (via Cambium import) | speed panel machine; also BVX via BEAVER panel interface |
 | panel | PBA-Industry | Cambium | BTLx (via Cambium import) | CLT/glulam panel processor; also BVX via BEAVER |
-| panel | PBA-Drive | Cambium | *(to confirm)* |  |
-| panel | PBA-X | Cambium | *(to confirm)* |  |
-| panel | UFA-Industry | Cambium | *(to confirm)* | CLT formatting up to 30 cm |
-| panel | WALL-Master | Cambium | *(to confirm)* |  |
-| planing | HM-3 | Cambium | *(to confirm)* | automatic planer; cross-section scanning |
+| panel | PBA-Drive | Cambium | BTLx (via Cambium import) | panel processing |
+| panel | PBA-X | Cambium | BTLx (via Cambium import) | panel processing |
+| panel | UFA-Industry | Cambium | BTLx (via Cambium import) | CLT formatting up to 30 cm |
+| panel | WALL-Master | Cambium | BTLx (via Cambium import) | wall prefab panel machine |
+| planing | HM-3 | Cambium | BTLx (via Cambium import) | automatic planer; cross-section scanning |
 
 <!-- /gen:machines -->
 
@@ -118,7 +125,8 @@ Edit the JSONL, then `mise run machines` to regenerate both tables. Every row ne
   `reads_btl` / `reads_btlx` / `reads_bvx` (**`true` / `false` / `null`=unverified** —
   this is what makes "who can we drive?" answerable), `popularity`
   (leader/major/established/niche/unknown), `confidence` (high/medium/low), `source`,
-  `notes`. Never guess a format to `true` — leave it `null` until sourced. Example
+  `native_format` (the maker's own machine format, e.g. `BVX2`, `CDT4 / SPL728`, or
+  `null`), `notes`. Never guess a format to `true` — leave it `null` until sourced. Example
   query: `open makers.jsonl | lines | each {from json} | where reads_btlx == true`.
 - **A Hundegger model** → [`machines.jsonl`](machines.jsonl): `manufacturer`, `model`,
   `family`, `controller`, `format`, `format_via`, `format_confirmed` (bool), `source`,

@@ -163,11 +163,12 @@ def mark [v] { if $v == null { "?" } else if $v { "✓" } else { "✗" } }
 def main [] {
   # Makers overview — rendered from the queryable per-format booleans.
   let makers = (rows "reference/makers.jsonl")
-  mut m = ["| Manufacturer | Country | Segment | BTL | BTLx | BVX | Drive today? | Popularity | Source |" "|---|---|---|:---:|:----:|:---:|---|---|---|"]
+  mut m = ["| Manufacturer | Country | Segment | BTL | BTLx | Native | Drive today? | Popularity | Source |" "|---|---|---|:---:|:----:|---|---|---|---|"]
   for r in $makers {
     let name = (if ($r.group == null) { $r.manufacturer } else { $"($r.manufacturer) \(($r.group)\)" })
+    let native = ($r.native_format | default "—")
     let drive = (if $r.reads_btlx == true { "**yes** (BTLx)" } else if $r.reads_btlx == null { "?" } else { "no" })
-    $m = ($m | append $"| ($name) | ($r.country) | ($r.segment) | (mark $r.reads_btl) | (mark $r.reads_btlx) | (mark $r.reads_bvx) | ($drive) | ($r.popularity) | ($r.source) |")
+    $m = ($m | append $"| ($name) | ($r.country) | ($r.segment) | (mark $r.reads_btl) | (mark $r.reads_btlx) | ($native) | ($drive) | ($r.popularity) | ($r.source) |")
   }
   # Hundegger model detail, grouped by manufacturer.
   let machines = (rows "reference/machines.jsonl")
