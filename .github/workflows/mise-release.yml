@@ -10,6 +10,6 @@ jobs:
   release:
     permissions:
       contents: write
-    uses: joeblew999/.github/.github/workflows/reusable-mise-release.yml@v0.65.0
+    uses: joeblew999/.github/.github/workflows/reusable-mise-release.yml@v0.67.1
     with:
       os-matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
