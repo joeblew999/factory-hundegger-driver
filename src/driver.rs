@@ -6,17 +6,22 @@
 //! same role the cut-list CSV plays for Howick. `run_job` hands that file to the
 //! machine's controller by writing it into the configured dispatch directory.
 //!
-//! ## Known unknowns (need a real shop / Hundegger — see the repo README)
+//! The loop is closed by polling the controller's **status log** (see
+//! [`crate::status`]): `run_job` dispatches a BTLx file, and `state` / `poll_telemetry`
+//! read `status_dir` to learn what the machine did. With no real machine to hand, the
+//! bundled simulator ([`crate::sim`], `btlx sim`) plays the controller — so the whole
+//! loop runs and is tested end-to-end here.
+//!
+//! ## The one genuine unknown (needs a real shop / Hundegger)
 //!
 //! - **Ingest mechanism.** Whether Cambium watches the dispatch folder, needs a
-//!   manual import, or exposes an API is unconfirmed. `run_job` writes a valid
-//!   file to `dispatch_dir` as the best-known hand-off; swap in the real
-//!   mechanism once known.
-//! - **Telemetry.** [`poll_telemetry`](Hundegger::poll_telemetry) reports only a
-//!   dispatch counter. Real machine state / job feedback needs a sample of the
-//!   controller's status-log format, which we don't have yet.
+//!   manual import, or exposes an API is unconfirmed. `run_job` writes a valid file to
+//!   `dispatch_dir` as the best-known hand-off; swap in the real mechanism once known.
+//! - **Status-log format.** The real Cambium log format is unconfirmed, so the loop
+//!   parses the simulator's format via [`crate::status::parse`] — the single place to
+//!   change when a real sample arrives. Everything above it is done.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use factory_machine_model::{
     Identification, JobOrder, MachineDescriptor, MachineDriver, MachineryItemState, Telemetry,
@@ -24,11 +29,12 @@ use factory_machine_model::{
 };
 
 use crate::config::HundeggerConfig;
+use crate::status::{self, JobState, STATUS_LOG};
 
-/// Telemetry BrowseName exposed under `Machines/<id>/Telemetry/`.
-///
-/// Placeholder until we can parse real controller logs — see the module note.
+/// Telemetry BrowseNames exposed under `Machines/<id>/Telemetry/`.
 pub const JOBS_DISPATCHED: &str = "JobsDispatched";
+pub const JOBS_COMPLETED: &str = "JobsCompleted";
+pub const JOBS_FAILED: &str = "JobsFailed";
 
 /// Driver for one Hundegger machine reachable from this host.
 pub struct Hundegger {
@@ -36,7 +42,6 @@ pub struct Hundegger {
     identification: Identification,
     config: HundeggerConfig,
     jobs_dispatched: AtomicU64,
-    running: AtomicBool,
 }
 
 impl Hundegger {
@@ -51,7 +56,6 @@ impl Hundegger {
             identification,
             config,
             jobs_dispatched: AtomicU64::new(0),
-            running: AtomicBool::new(false),
         }
     }
 
@@ -66,6 +70,14 @@ impl Hundegger {
         tokio::fs::write(&path, payload).await?;
         Ok(path)
     }
+
+    /// Read + parse the machine's status log (empty if not written yet).
+    async fn status(&self) -> Vec<status::StatusEntry> {
+        let log = tokio::fs::read_to_string(self.config.status_dir.join(STATUS_LOG))
+            .await
+            .unwrap_or_default();
+        status::parse(&log)
+    }
 }
 
 impl MachineDriver for Hundegger {
@@ -74,12 +86,18 @@ impl MachineDriver for Hundegger {
             machine_id: self.machine_id.clone(),
             kind: crate::KIND.to_owned(),
             identification: self.identification.clone(),
-            telemetry: vec![TelemetryField::new(JOBS_DISPATCHED, ValueKind::UInt, None)],
+            telemetry: vec![
+                TelemetryField::new(JOBS_DISPATCHED, ValueKind::UInt, None),
+                TelemetryField::new(JOBS_COMPLETED, ValueKind::UInt, None),
+                TelemetryField::new(JOBS_FAILED, ValueKind::UInt, None),
+            ],
         }
     }
 
+    /// `Executing` if any job is `running` in the status log, else `NotExecuting`.
     async fn state(&self) -> MachineryItemState {
-        if self.running.load(Ordering::Relaxed) {
+        let latest = status::latest_by_job(&self.status().await);
+        if latest.values().any(|e| e.state == JobState::Running) {
             MachineryItemState::Executing
         } else {
             MachineryItemState::NotExecuting
@@ -91,22 +109,29 @@ impl MachineDriver for Hundegger {
             .payload()
             .ok_or_else(|| anyhow::anyhow!("job {} carries no BTLx payload", job.job_order_id))?;
 
-        self.running.store(true, Ordering::Relaxed);
-        let result = self.dispatch(&job.job_order_id, payload).await;
-        self.running.store(false, Ordering::Relaxed);
-        let path = result?;
+        let path = self.dispatch(&job.job_order_id, payload).await?;
         tracing::info!(job = %job.job_order_id, path = %path.display(), "dispatched BTLx to machine");
 
         self.jobs_dispatched.fetch_add(1, Ordering::Relaxed);
         Ok(())
     }
 
+    /// Dispatch counter (what we sent) plus completed/failed counts read back from the
+    /// machine's status log (what it actually did).
     async fn poll_telemetry(&self) -> anyhow::Result<Telemetry> {
+        let latest = status::latest_by_job(&self.status().await);
+        let count = |s: JobState| latest.values().filter(|e| e.state == s).count() as u64;
+
         let mut t = Telemetry::new();
         t.insert(
             JOBS_DISPATCHED.to_owned(),
             Value::UInt(self.jobs_dispatched.load(Ordering::Relaxed)),
         );
+        t.insert(
+            JOBS_COMPLETED.to_owned(),
+            Value::UInt(count(JobState::Completed)),
+        );
+        t.insert(JOBS_FAILED.to_owned(), Value::UInt(count(JobState::Failed)));
         Ok(t)
     }
 }
@@ -116,34 +141,40 @@ mod tests {
     use super::*;
     use crate::btlx::{model::*, to_xml};
 
-    fn driver() -> Hundegger {
+    /// A driver with isolated dispatch + status dirs under a per-test base.
+    fn driver(name: &str) -> Hundegger {
+        let base = std::env::temp_dir().join("factory-btlx-driver").join(name);
+        let _ = std::fs::remove_dir_all(&base);
         let cfg = HundeggerConfig {
-            dispatch_dir: std::env::temp_dir().join("factory-hundegger-test"),
+            dispatch_dir: base.join("in"),
+            status_dir: base.join("status"),
             ..Default::default()
         };
         Hundegger::new("hundegger-1", Identification::new("Hundegger", "K2"), cfg)
     }
 
+    fn sample(job: &str) -> Vec<u8> {
+        let part = Part::new(3000.0, 160.0, 80.0).with_processings(vec![Processing::Drilling(
+            Drilling::new("bolt-hole", 1, RefPlane::Global(3), 500.0, 80.0, 80.0, 12.0),
+        )]);
+        to_xml(&Btlx::new(Project::new(job, vec![part])))
+            .unwrap()
+            .into_bytes()
+    }
+
     #[test]
     fn descriptor_is_standard_plus_hundegger_telemetry() {
-        let d = driver().descriptor();
+        let d = driver("descriptor").descriptor();
         assert_eq!(d.kind, crate::KIND);
         assert_eq!(d.identification.manufacturer, "Hundegger");
         let names: Vec<&str> = d.telemetry.iter().map(|f| f.name.as_str()).collect();
-        assert_eq!(names, [JOBS_DISPATCHED]);
+        assert_eq!(names, [JOBS_DISPATCHED, JOBS_COMPLETED, JOBS_FAILED]);
     }
 
     #[tokio::test]
     async fn dispatches_a_btlx_job_to_the_machine() {
-        // Produce a real BTLx payload via our own serialiser, then dispatch it.
-        let part = Part::new(3000.0, 160.0, 80.0).with_processings(vec![Processing::Drilling(
-            Drilling::new("bolt-hole", 1, RefPlane::Global(3), 500.0, 80.0, 80.0, 12.0),
-        )]);
-        let xml = to_xml(&Btlx::new(Project::new("job-42", vec![part]))).unwrap();
-
-        let d = driver();
-        assert_eq!(d.state().await, MachineryItemState::NotExecuting);
-        let job = JobOrder::with_payload("job-42", "BtlxDoc", xml.into_bytes());
+        let d = driver("dispatch");
+        let job = JobOrder::with_payload("job-42", "BtlxDoc", sample("job-42"));
         d.run_job(&job).await.unwrap();
 
         let written = std::fs::read_to_string(d.config.dispatch_dir.join("job-42.btlx")).unwrap();
@@ -151,8 +182,43 @@ mod tests {
             written.contains("<Drilling"),
             "the BTLx reaches the machine intact"
         );
+        assert_eq!(
+            d.poll_telemetry().await.unwrap().get(JOBS_DISPATCHED),
+            Some(&Value::UInt(1))
+        );
+    }
 
+    /// The full loop, no hardware: driver dispatches → simulator plays the controller →
+    /// driver reads the status log back as telemetry + machine state.
+    #[tokio::test]
+    async fn full_dispatch_to_telemetry_loop_via_simulator() {
+        let d = driver("loop");
+
+        // Idle before anything runs.
+        assert_eq!(d.state().await, MachineryItemState::NotExecuting);
+
+        // Dispatch two jobs.
+        d.run_job(&JobOrder::with_payload("job-a", "BtlxDoc", sample("job-a")))
+            .await
+            .unwrap();
+        d.run_job(&JobOrder::with_payload("job-b", "BtlxDoc", sample("job-b")))
+            .await
+            .unwrap();
+
+        // Nothing has run them yet: dispatched=2, completed=0.
         let t = d.poll_telemetry().await.unwrap();
-        assert_eq!(t.get(JOBS_DISPATCHED), Some(&Value::UInt(1)));
+        assert_eq!(t.get(JOBS_DISPATCHED), Some(&Value::UInt(2)));
+        assert_eq!(t.get(JOBS_COMPLETED), Some(&Value::UInt(0)));
+
+        // The simulator (standing in for Cambium) processes the dispatch dir.
+        let run =
+            crate::sim::process_pending(&d.config.dispatch_dir, &d.config.status_dir).unwrap();
+        assert_eq!(run.completed.len(), 2);
+
+        // The driver now reads the machine's feedback back as telemetry.
+        let t = d.poll_telemetry().await.unwrap();
+        assert_eq!(t.get(JOBS_COMPLETED), Some(&Value::UInt(2)));
+        assert_eq!(t.get(JOBS_FAILED), Some(&Value::UInt(0)));
+        assert_eq!(d.state().await, MachineryItemState::NotExecuting);
     }
 }

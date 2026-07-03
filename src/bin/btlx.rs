@@ -6,8 +6,9 @@
 //!
 //!   btlx inspect path/to/your-file.btlx
 //!   btlx demo > sample.btlx
+//!   btlx sim --dispatch ./in --status ./status   # stand-in machine for the driver loop
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
@@ -35,16 +36,68 @@ enum Command {
     },
     /// Print a small sample .btlx to standard output.
     Demo,
+    /// Act as a stand-in Hundegger controller: process dispatched .btlx files and
+    /// write status lines — so the driver's dispatch→telemetry loop runs with no
+    /// real machine.
+    Sim {
+        /// Directory the driver dispatches .btlx files into.
+        #[arg(long)]
+        dispatch: PathBuf,
+        /// Directory to write the status log into (status.jsonl).
+        #[arg(long)]
+        status: PathBuf,
+        /// Keep running, polling the dispatch dir (Ctrl-C to stop).
+        #[arg(long)]
+        watch: bool,
+    },
 }
 
 fn main() -> ExitCode {
     match Cli::parse().command {
         Command::Inspect { file } => inspect_cmd(&file),
         Command::Demo => demo_cmd(),
+        Command::Sim {
+            dispatch,
+            status,
+            watch,
+        } => sim_cmd(&dispatch, &status, watch),
     }
 }
 
-fn inspect_cmd(file: &PathBuf) -> ExitCode {
+fn sim_cmd(dispatch: &Path, status: &Path, watch: bool) -> ExitCode {
+    let once = || match factory_btlx::sim::process_pending(dispatch, status) {
+        Ok(run) => {
+            for j in &run.completed {
+                println!("✓ completed {j}");
+            }
+            for j in &run.failed {
+                println!("✗ failed    {j}");
+            }
+            true
+        }
+        Err(e) => {
+            eprintln!("error: {e}");
+            false
+        }
+    };
+    if !watch {
+        return if once() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
+    println!(
+        "simulating a Hundegger controller — watching {}",
+        dispatch.display()
+    );
+    loop {
+        once();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+}
+
+fn inspect_cmd(file: &Path) -> ExitCode {
     let xml = match std::fs::read_to_string(file) {
         Ok(s) => s,
         Err(e) => {

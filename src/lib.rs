@@ -7,23 +7,28 @@
 //!   This is the reusable, machine-independent core: turn a parametric part
 //!   description into a `.btlx` file that validates against the published schema.
 //! - [`driver`] — [`Hundegger`], which implements
-//!   [`factory_machine_model::MachineDriver`], handing a BTLx payload to the
-//!   machine's controller (Cambium / NC-HOPS) and reporting state.
+//!   [`factory_machine_model::MachineDriver`]: it dispatches a BTLx payload to the
+//!   machine's controller and closes the loop by reading the [`status`] log back.
+//! - [`sim`] — a stand-in controller so the whole dispatch→telemetry loop runs and is
+//!   tested without a real machine (`btlx sim`).
 //!
 //! The gateway composes this crate when a factory's config declares a machine
 //! with `driver = "hundegger"`.
 //!
 //! ## Scope
 //!
-//! This is an early scaffold. The BTLx model covers the document/part structure
-//! and [`Drilling`](btlx::Drilling) as the first processing; the machine-facing
-//! dispatch and telemetry are stubbed pending a real sample from a shop (see the
-//! repository README for the exact open questions).
+//! The BTLx model covers the common processings (Lap, JackRafterCut, Drilling,
+//! Mortise, Tenon), validated against the real XSD. The driver's dispatch + telemetry
+//! loop is complete and tested via the simulator; the one genuine unknown left is
+//! Cambium's real ingest mechanism + status-log format, isolated behind
+//! [`status::parse`] (see the module docs).
 
 pub mod btlx;
 pub mod config;
 pub mod driver;
 pub mod inspect;
+pub mod sim;
+pub mod status;
 
 pub use config::{HundeggerConfig, OutputFormat};
 pub use driver::Hundegger;

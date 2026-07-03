@@ -91,24 +91,30 @@ Working, and proven against real machine files — not just a scaffold:
   **validates against the real BTLx XSD** (`xmllint`). Running `inspect` on a real
   130-processing machine export now reports *"we can read and write every processing
   in this file."*
-- `Hundegger` implements the full `factory-machine-model` `MachineDriver` contract.
+- **`Hundegger` driver — full dispatch→telemetry loop.** `run_job` dispatches a BTLx
+  file; `state` / `poll_telemetry` read the controller's status log back
+  (JobsDispatched / JobsCompleted / JobsFailed). Because there's no machine to hand,
+  **`btlx sim` plays the controller** — so the whole loop runs and is tested
+  end-to-end. `btlx sim --dispatch ./in --status ./status`.
 - Real files are BTLx **2.0.0 / 2.2.0** in practice; both the 2.0.0 and 2.3.1 schemas
   are in [`fixtures/schema`](fixtures/schema).
+- The machines we target and the format each takes are catalogued in
+  [`reference/machines.md`](reference/machines.md).
 
 ## Open questions — need a real shop or Hundegger
 
-The `inspect` tool is designed to help close these from the field:
+Everything buildable is built; these two need a real machine (the tool is designed to
+pull them in from the field):
 
-- **Which processings.** The common set (Lap, JackRafterCut, Drilling, Mortise, Tenon)
-  is done; `inspect` on a shop's own files flags any of the ~45 rarer BTLx processings
-  they use that we don't yet write.
-- **Ingest mechanism.** How Cambium takes a file — watched hot folder, manual import,
-  or an API. `run_job` writes a valid file to the dispatch dir as the best-known
-  hand-off; swap in the real path once known.
-- **Telemetry format.** The driver reports only a dispatch counter; real machine
-  feedback needs a sample of the controller's status-log format.
-- **BTLx vs BVX, and which version.** Which format/version a given customer machine
-  wants. (No public BVX samples exist — must come from a shop.)
+- **Ingest mechanism.** How Cambium *takes* the file — watched hot folder, manual
+  import, or an API. `run_job` writes a valid file to the dispatch dir as the
+  best-known hand-off; swap in the real path once known.
+- **Status-log format.** The loop parses the simulator's format via
+  [`status::parse`](src/status.rs) — the *single* function to change when a real
+  Cambium status-log sample arrives. Everything above it is done.
+
+*(Lower priority: the ~45 rarer BTLx processings — `inspect` flags any a shop uses;
+BVX/version per machine — see the reference. No public BVX samples exist.)*
 
 ## Develop
 

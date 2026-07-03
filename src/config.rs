@@ -45,6 +45,13 @@ pub struct HundeggerConfig {
     /// manual import vs. API); see the driver's `run_job`. Writing a valid file
     /// here is the current best-known hand-off.
     pub dispatch_dir: PathBuf,
+    /// Directory the machine controller writes its job status log into — we poll it
+    /// to close the loop (job started / completed / error).
+    ///
+    /// **The real Cambium log format is unconfirmed** — see [`crate::status`]. Until
+    /// we have a sample, the log is parsed as the format the bundled simulator writes
+    /// (`btlx sim`), isolated behind one parser we swap when the real format is known.
+    pub status_dir: PathBuf,
     /// Serialised output format. See [`OutputFormat`].
     pub format: OutputFormat,
 }
@@ -53,6 +60,7 @@ impl Default for HundeggerConfig {
     fn default() -> Self {
         Self {
             dispatch_dir: PathBuf::from("/mnt/cambium_import"),
+            status_dir: PathBuf::from("/mnt/cambium_status"),
             format: OutputFormat::Btlx,
         }
     }
