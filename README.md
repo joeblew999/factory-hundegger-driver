@@ -73,7 +73,9 @@ factory-floor **orchestration + telemetry** around whatever controller the shop 
 BVX (Hundegger's own format, also XML; used by the panel line SPM-2/PBA/SIP and the
 SC3/Cambium saw) is a second serialiser we add only when a specific machine needs it.
 
-The background research and the customer/market context live in
+Which machines we target and the file format each one takes is catalogued (with
+sources) in [`reference/machines.md`](reference/machines.md). The background research
+and the customer/market context live in
 [factory-customers-cnc/customers/austria-cnc](https://github.com/joeblew999/factory-customers-cnc).
 
 ## Status
