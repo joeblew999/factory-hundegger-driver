@@ -49,16 +49,33 @@ and the **SC3 / Cambium** saw → **BVX**. Those exact model names aren't in the
 lineup, so treat that mapping as historical; the modern reality is "Cambium imports
 BTLx." A shop's actual model + Cambium version is the ground truth — confirm per shop.
 
-## The format picture
+## The format picture — do other makers use the same protocol?
 
-- **BTLx** — the open, machine-agnostic interchange (design2machine). Every serious
-  wood CAD exports it, and **Cambium imports it**, so it drives the whole current
-  Hundegger range. This crate serialises BTLx. *(sources: design2machine, hsbcad
-  academy Cambium notes, real 2.0.0 machine exports in `fixtures/samples`.)*
-- **BVX** — Hundegger's own XML format, native to the saw (SC3/Cambium) and panel
-  lines (SPM-2 / PBA / SIP via the **BEAVER** interface). Needed only for a direct,
-  non-Cambium hand-off. No public samples exist. *(sources: Tekla BVX article, BEAVER
-  Grasshopper interface.)*
+Partly. There are three formats, and the honest cross-vendor reality (verified):
+
+- **BTL (v10)** — the **older** but most widely-supported open standard.
+  **Weinmann, SCM, Essetre, Krüsi and Schmidler** all read BTL10, and the `.btl`
+  extension is used worldwide across many makers. *(source:
+  [ansvarcad CNC files](https://www.ansvarcad.com/features/cnc-files/).)*
+- **BTLx** — the **newer**, XML, machine-independent variant of BTL
+  (design2machine) — **what this crate serialises.** Hundegger/Cambium imports it and
+  Weinmann reads it, but the sources call BTLx **"not yet widespread"** — BTL's reach
+  is broader. So **do not assume a given maker takes BTLx**; confirm per maker/model.
+  *(sources: [design2machine](https://www.design2machine.com/); ansvarcad;
+  [AGACAD Weinmann BTL/BTLx exporter](https://agacad.com/products/bim-solutions/wood-framing-cnc-exporter-weinmann-btl/overview).)*
+- **BVX** — Hundegger's own native format (saw + panel lines, via the **BEAVER**
+  interface). Hundegger-specific, no public samples. *(sources: Tekla BVX; BEAVER.)*
+
+**Makers seen in the BTL/BTLx post-processor ecosystem** (manufacturer level, per
+cadwork / ArchiFrame post-processor lists): Hundegger, Weinmann, Baljer & Zembrod,
+Krüsi / Krusimatic / Lignamatik, Essetre, Randek, CMS, Creneau Industriel, SCM,
+Schmidler, Stromab. Which *dialect* (BTL vs BTLx) and which *models* is not verified
+here — add to `machines.jsonl` only with a source.
+
+**Product implication:** we emit BTLx, which is exactly right for Hundegger/Cambium
+(our first target). To reach the broader BTL-reading market later, we may need to
+also emit the older **BTL v10** — a separate serialiser, tracked when a real
+non-Hundegger customer needs it.
 
 ## Adding a machine
 
@@ -69,5 +86,6 @@ regenerate the table. Fields: `manufacturer`, `model`, `family`, `controller`,
 - Unknown format → `format: null`, `format_confirmed: false` (renders `(to confirm)`).
 - Confirmed from a real shop file or Hundegger → set the format, `format_confirmed:
   true`, and cite it in `source` (e.g. `"shop export 2026-07"`).
-- Other manufacturers (Weinmann, Krüsi, Essetre…) → just add rows with their
-  `manufacturer`; they mostly take **BTLx** too, which is the point.
+- Other manufacturers (Weinmann, Essetre, Krüsi…) → add rows with their
+  `manufacturer`, but **confirm the dialect** — many read the older **BTL**, not
+  necessarily **BTLx** (see above). Don't assume; cite a source.
