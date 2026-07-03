@@ -144,6 +144,34 @@ def main [] {
 }
 '''
 
+# Regenerate the reference/machines.md table from reference/machines.jsonl (the
+# source of truth). Pure nushell.   mise run machines
+[tasks.machines]
+run = '''
+#!/usr/bin/env nu
+def main [] {
+  let rows = (open reference/machines.jsonl | lines | where {|l| ($l | str trim | is-not-empty)} | each {|l| $l | from json })
+  mut out = []
+  for mfr in ($rows | get manufacturer | uniq) {
+    let mrows = ($rows | where manufacturer == $mfr)
+    $out = ($out | append [$"### ($mfr)" "" "| Family | Model | Controller | Interchange in | Notes |" "|--------|-------|------------|----------------|-------|"])
+    for r in $mrows {
+      let fmt = (if $r.format_confirmed {
+        if (($r.format_via | default "") | is-empty) { $r.format } else { $"($r.format) \(via ($r.format_via)\)" }
+      } else { "*(to confirm)*" })
+      $out = ($out | append $"| ($r.family) | ($r.model) | ($r.controller) | ($fmt) | ($r.notes) |")
+    }
+    $out = ($out | append "")
+  }
+  let table = ($out | str join (char newline))
+  let md = (open reference/machines.md --raw | decode utf-8)
+  let before = ($md | split row "<!-- gen:machines -->" | get 0)
+  let after = ($md | split row "<!-- /gen:machines -->" | get 1)
+  $"($before)<!-- gen:machines -->\n\n($table)\n<!-- /gen:machines -->($after)" | save --force reference/machines.md
+  print $"✓ regenerated reference/machines.md table from ($rows | length) machines"
+}
+'''
+
 # Fail if .github/workflows/ drifted from `mise run mise:repo:bootstrap` — keeps the
 # generated CI honest against the shared bootstrap. (.gitattributes pins eol=lf so
 # the git compare is identical on Windows.)

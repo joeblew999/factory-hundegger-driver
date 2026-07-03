@@ -6,33 +6,42 @@ directly, or a BVX serialiser is needed. This is generic reference (public); whi
 *shops* run which machines is the private prospect list in
 [factory-customers-cnc](https://github.com/joeblew999/factory-customers-cnc).
 
-**Provenance rule:** every row traces to a source. A claim we can't source is marked
-`(to confirm)` — not guessed. Format-per-model in particular is only partly public;
-see [The format picture](#the-format-picture).
+**Data lives in [`machines.jsonl`](machines.jsonl)** (one machine per line) — the
+source of truth. The table below is **generated** from it with `mise run machines`;
+edit the JSONL, not the table.
 
-## Hundegger
+**Provenance rule:** every machine cites a `source`. A format we can't source is
+`format_confirmed: false` and renders `(to confirm)` — not guessed. Format-per-model
+is only partly public; see [The format picture](#the-format-picture).
 
-The current lineup, from [hundegger.com/en/machines](https://www.hundegger.com/en/machines)
-(2026). All current machines run Hundegger's **Cambium** controller software, and
-Cambium imports **BTL/BTLx** — so our BTLx output targets the whole current range.
-`BVX` is Hundegger's own native format (saw + panel lines); needed only if driving a
-machine *without* going through Cambium's BTLx import.
+## Machines
 
-| Family | Model | Controller | Interchange in | Source |
-|--------|-------|------------|----------------|--------|
-| Joinery / robot | ROBOT-Max | Cambium | BTLx (via Cambium) | hundegger.com |
-| Joinery / robot | ROBOT-Drive | Cambium | BTLx (via Cambium) | hundegger.com |
-| Joinery / robot | ROBOT-Compact | Cambium | BTLx (via Cambium) | hundegger.com |
-| Joinery | K2-Industry (2026) | Cambium | BTLx (via Cambium) | hundegger.com |
-| Cutting | SPEED-Cut 480 | Cambium | BTLx (via Cambium); native BVX *(to confirm)* | hundegger.com |
-| Cutting | TURBO-Drive | Cambium | BTLx (via Cambium); native BVX *(to confirm)* | hundegger.com |
-| Panel | SPM-2 | Cambium | BVX via the **BEAVER** panel interface; BTLx via Cambium *(to confirm)* | hundegger.com · Tekla/BEAVER |
-| Panel | PBA-Industry | Cambium | BVX via **BEAVER**; BTLx via Cambium *(to confirm)* | hundegger.com · BEAVER |
-| Panel | PBA-Drive | Cambium | *(to confirm)* | hundegger.com |
-| Panel | PBA-X | Cambium | *(to confirm)* | hundegger.com |
-| Panel | UFA-Industry | Cambium | *(to confirm — CLT formatting up to 30 cm)* | hundegger.com |
-| Panel | WALL-Master | Cambium | *(to confirm)* | hundegger.com |
-| Planing | HM-3 | Cambium | *(to confirm — automatic planer, cross-section scan)* | hundegger.com |
+All current Hundegger machines run the **Cambium** controller, and Cambium imports
+**BTL/BTLx** — so our BTLx output targets the whole current range. `BVX` is
+Hundegger's own native format (saw + panel lines); needed only for a direct hand-off
+that bypasses Cambium's BTLx import.
+
+<!-- gen:machines -->
+
+### Hundegger
+
+| Family | Model | Controller | Interchange in | Notes |
+|--------|-------|------------|----------------|-------|
+| joinery | ROBOT-Max | Cambium | BTLx (via Cambium import) | 6-axis robot joinery |
+| joinery | ROBOT-Drive | Cambium | BTLx (via Cambium import) | 6-axis robot + 5-axis saw/slot/marking |
+| joinery | ROBOT-Compact | Cambium | BTLx (via Cambium import) | 6-axis robot + automated tool changer |
+| joinery | K2-Industry | Cambium | BTLx (via Cambium import) | industrial structural-timber joinery (2026) |
+| cutting | SPEED-Cut 480 | Cambium | BTLx (via Cambium import) | solid-timber cutting; native BVX (to confirm) |
+| cutting | TURBO-Drive | Cambium | BTLx (via Cambium import) | flexible saw unit; native BVX (to confirm) |
+| panel | SPM-2 | Cambium | BTLx (via Cambium import) | speed panel machine; also BVX via BEAVER panel interface |
+| panel | PBA-Industry | Cambium | BTLx (via Cambium import) | CLT/glulam panel processor; also BVX via BEAVER |
+| panel | PBA-Drive | Cambium | *(to confirm)* |  |
+| panel | PBA-X | Cambium | *(to confirm)* |  |
+| panel | UFA-Industry | Cambium | *(to confirm)* | CLT formatting up to 30 cm |
+| panel | WALL-Master | Cambium | *(to confirm)* |  |
+| planing | HM-3 | Cambium | *(to confirm)* | automatic planer; cross-section scanning |
+
+<!-- /gen:machines -->
 
 **Legacy naming (pre-Cambium), from [Tekla — Timber NC BVX](https://support.tekla.com/article/timber-nc-bvx):**
 older docs map the **H&M line** (HM-Z / HM-D / HM-T, Trussmaster) → **BTLx** direct,
@@ -51,11 +60,14 @@ BTLx." A shop's actual model + Cambium version is the ground truth — confirm p
   non-Cambium hand-off. No public samples exist. *(sources: Tekla BVX article, BEAVER
   Grasshopper interface.)*
 
-## Adding rows
+## Adding a machine
 
-- New Hundegger model → add to the table with a source, format `(to confirm)` until
-  we can back it.
-- Other manufacturers (Weinmann, Krüsi, Essetre…) → new `## <manufacturer>` section.
-  They mostly consume **BTLx** too (it's the open standard), which is the point.
-- Confirmed a format from a real shop file or Hundegger? Drop the `(to confirm)` and
-  cite the source (e.g. "shop export, 2026-07").
+Add a line to [`machines.jsonl`](machines.jsonl), then `mise run machines` to
+regenerate the table. Fields: `manufacturer`, `model`, `family`, `controller`,
+`format`, `format_via`, `format_confirmed` (bool), `source`, `notes`.
+
+- Unknown format → `format: null`, `format_confirmed: false` (renders `(to confirm)`).
+- Confirmed from a real shop file or Hundegger → set the format, `format_confirmed:
+  true`, and cite it in `source` (e.g. `"shop export 2026-07"`).
+- Other manufacturers (Weinmann, Krüsi, Essetre…) → just add rows with their
+  `manufacturer`; they mostly take **BTLx** too, which is the point.
