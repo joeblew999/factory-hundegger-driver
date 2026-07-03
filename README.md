@@ -60,23 +60,26 @@ That's the validation loop: your real files drive what we build, and the tool pr
 we read them correctly before anything ever reaches a machine. `btlx demo`
 prints a sample BTLx file so you can see what we generate.
 
-## Why BTLx first
+## Why BTLx, and where the value is
 
-The timber-CNC market has already standardised the hard part. **BTLx is the
-universal interchange** — every serious wood CAD exports it — and several
-commercial post-processors already turn BTLx into machine NC-code (Hundegger's own
-**Cambium**, **NC-HOPS** by direkt cnc-systeme, AGACAD's Revit→BVX exporter, Tekla).
-So we don't reinvent the machine post-processor. Our leverage is the two ends the
-incumbents don't own for our customers: **design → BTLx** generation, and the
-factory-floor **orchestration + telemetry** around whatever controller the shop runs.
+**Why BTLx:** it's the open interchange the market standardised on — every serious
+wood CAD exports it and Hundegger's **Cambium** imports it — so it's the right output
+to drive our first target (Hundegger) without reinventing a post-processor. BVX
+(Hundegger's own format; panel line + SC3/Cambium saw) is a second serialiser we'd add
+only when a specific machine needs it.
 
-BVX (Hundegger's own format, also XML; used by the panel line SPM-2/PBA/SIP and the
-SC3/Cambium saw) is a second serialiser we add only when a specific machine needs it.
+**Where the product value is** is *not* generating BTLx or scheduling one machine —
+those are already well served (Cambium's Component Manager, cadwork/SEMA, RIB PPS). The
+open gap is a **vendor-neutral layer over a *mixed-brand* machine fleet** — mature in
+metal CNC (Predator, FourJaw, MachineMetrics), absent in timber — which is exactly what
+[factory-floor](https://github.com/joeblew999/factory-floor) is built to be (OPC-UA +
+a driver per brand + open BTLx). **This crate is the Hundegger driver: the first
+brick.** The wedge is mixed-fleet shops; single-brand shops are already covered by their
+vendor. Full analysis (private):
+[factory-customers-cnc → market-gap.md](https://github.com/joeblew999/factory-customers-cnc/blob/main/customers/austria-cnc/market-gap.md).
 
-Which machines we target and the file format each one takes is catalogued (with
-sources) in [`reference/machines.md`](reference/machines.md). The background research
-and the customer/market context live in
-[factory-customers-cnc/customers/austria-cnc](https://github.com/joeblew999/factory-customers-cnc).
+Which machines we target and the format each takes is catalogued (with sources) in
+[`reference/machines.md`](reference/machines.md).
 
 ## Status
 
